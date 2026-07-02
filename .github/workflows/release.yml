@@ -1,0 +1,41 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Тег релиза (например v1.3.0). Пусто — только проверочная сборка без релиза.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish single-file exe
+        run: dotnet publish FileMaskCleaner.Gui -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: FileMaskCleaner
+          path: FileMaskCleaner.Gui/bin/Release/net10.0-windows/win-x64/publish/FileMaskCleaner.exe
+
+      - name: Create release with exe
+        if: github.ref_type == 'tag' || inputs.tag != ''
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.tag != '' && inputs.tag || github.ref_name }}
+          files: FileMaskCleaner.Gui/bin/Release/net10.0-windows/win-x64/publish/FileMaskCleaner.exe
+          generate_release_notes: true
